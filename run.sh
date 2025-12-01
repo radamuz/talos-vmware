@@ -53,13 +53,14 @@ if [ -e controlplane.yaml ] || [ -e cp.patch.yaml ] || [ -e talosconfig ] || [ -
     echo "Por su seguridad se va a hacer una copia de seguridad empaquetada en este mismo directorio." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
     echo "¿Quiere continuar? [S/n]" | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
     read -r FILE_VERIFICATION_CONTINUATION_CHECK
+    echo "FILE_VERIFICATION_CONTINUATION_CHECK: $FILE_VERIFICATION_CONTINUATION_CHECK" | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
     FILE_VERIFICATION_CONTINUATION_CHECK="${FILE_VERIFICATION_CONTINUATION_CHECK,,}"
     if [[ -z "$FILE_VERIFICATION_CONTINUATION_CHECK" || "$FILE_VERIFICATION_CONTINUATION_CHECK" == "s" || "$FILE_VERIFICATION_CONTINUATION_CHECK" == "si" ]]; then
         echo "Continuando con el empaquetado mediante tar..." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
         tar -czvf $INITIAL_SCRIPT_TIMESTAMP.tar.gz --ignore-failed-read controlplane.yaml cp.patch.yaml talosconfig worker.yaml | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
         if [[ $? -eq 0 && -f "${INITIAL_SCRIPT_TIMESTAMP}.tar.gz" ]]; then
             echo "Paquete creado correctamente. Continuando..." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
-            # rm -f controlplane.yaml cp.patch.yaml talosconfig worker.yaml
+            rm -f controlplane.yaml cp.patch.yaml talosconfig worker.yaml
         else
             echo "❌ Error: el comando falló o no se generó el archivo ${INITIAL_SCRIPT_TIMESTAMP}.tar.gz" | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
             exit 1
