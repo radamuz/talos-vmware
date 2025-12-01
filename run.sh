@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Bloque inicio del script
-INITIAL_SCRIPT_TIMESTAMP=$(date '+%Y-%m-%d_%H:%M:%S')
+INITIAL_SCRIPT_TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 echo "$INITIAL_SCRIPT_TIMESTAMP - Inicio del script" | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 # Fin bloque inicio del script
@@ -26,7 +26,7 @@ else
     govc version 2>/dev/null | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
     echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 fi
-echo
+echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 # Fin bloque govc
 
 # Bloque talosctl
@@ -43,8 +43,38 @@ else
     talosctl version 2>/dev/null | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
     echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 fi
-echo
+echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 # Fin bloque talosctl
+
+# Bloque comprobación de archivos
+echo "Comprobación de archivos." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+if [ -e controlplane.yaml ] || [ -e cp.patch.yaml ] || [ -e talosconfig ] || [ -e worker.yaml ]; then 
+    echo "Alguno de los archivos de configuración de despliegue existe." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+    echo "Por su seguridad se va a hacer una copia de seguridad empaquetada en este mismo directorio." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+    echo "¿Quiere continuar? [S/n]" | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+    read -r FILE_VERIFICATION_CONTINUATION_CHECK
+    FILE_VERIFICATION_CONTINUATION_CHECK="${FILE_VERIFICATION_CONTINUATION_CHECK,,}"
+    if [[ -z "$FILE_VERIFICATION_CONTINUATION_CHECK" || "$FILE_VERIFICATION_CONTINUATION_CHECK" == "s" || "$FILE_VERIFICATION_CONTINUATION_CHECK" == "si" ]]; then
+        echo "Continuando con el empaquetado mediante tar..." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+        tar -czvf $INITIAL_SCRIPT_TIMESTAMP.tar.gz --ignore-failed-read controlplane.yaml cp.patch.yaml talosconfig worker.yaml | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+        if [[ $? -eq 0 && -f "${INITIAL_SCRIPT_TIMESTAMP}.tar.gz" ]]; then
+            echo "Paquete creado correctamente. Continuando..." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+            # rm -f controlplane.yaml cp.patch.yaml talosconfig worker.yaml
+        else
+            echo "❌ Error: el comando falló o no se generó el archivo ${INITIAL_SCRIPT_TIMESTAMP}.tar.gz" | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+            exit 1
+        fi
+    else
+        echo "Ha seleccionado que no quiere continuar. Por lo tanto tendrá que borrar sus ficheros controlplane.yaml, cp.patch.yaml, talosconfig y worker.yaml de forma manual y volver a lanzar el script para poder realizar el despliegue de forma correcta." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+        exit 1
+    fi
+else
+    echo "Comprobación realizada con éxito." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+fi
+echo "Fin de comprobación de archivos." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+# Fin Bloque comprobación de archivos
+
 
 # Bloque cp.patch.yaml
 echo -n "Introduce la VIP (Virtual IP) fija que quieres usar y que se le asignará a un nodo con rol \"Control Plane\" como por ejemplo 10.12.4.31: " | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
@@ -76,5 +106,14 @@ echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 echo "Generación de configuración de Talos." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 talosctl gen config $CLUSTER_NAME https://$VIP:6443 --config-patch-control-plane @cp.patch.yaml | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 echo "Fin de generación de configuración de Talos." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+echo | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
 # Fin de Bloque de generación de config
 
+# Validar configuraciones
+echo "Validación de configuración de Control Plane." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+talosctl validate --config controlplane.yaml --mode cloud | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+echo "Fin de validación de configuraciones." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+echo "Validación de configuración de Worker." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+talosctl validate --config worker.yaml --mode cloud | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+echo "Fin de validación de configuraciones." | tee -a $INITIAL_SCRIPT_TIMESTAMP.log
+# Fin validar configuraciones

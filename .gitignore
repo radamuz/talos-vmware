@@ -4,3 +4,4 @@ cp.patch.yaml
 controlplane.yaml
 talosconfig
 worker.yaml
+*.tar.gz
